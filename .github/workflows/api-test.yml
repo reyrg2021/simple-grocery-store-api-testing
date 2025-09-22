@@ -28,23 +28,23 @@ jobs:
         npm install
         
     - name: Run API Tests - Setup Authentication
-      run: bru run collections/00_Setup_Authentication --env Testing
+      run: bru run 00_Setup_Authentication --env Testing
       continue-on-error: false
       
     - name: Run API Tests - Happy Paths
-      run: bru run collections/01_Happy_Paths --env Testing
+      run: bru run 01_Happy_Paths --env Testing
       continue-on-error: true
       
     - name: Run API Tests - Edge Cases
-      run: bru run collections/02_Edge_Cases --env Testing
+      run: bru run 02_Edge_Cases --env Testing
       continue-on-error: true
       
     - name: Run API Tests - Negative Cases
-      run: bru run collections/03_Negative_Cases --env Testing
+      run: bru run 03_Negative_Cases --env Testing
       continue-on-error: true
       
     - name: Run API Tests - Automated Flow
-      run: bru run collections/04_Automated_Flow --env Testing
+      run: bru run 04_Automated_Flow --env Testing
       continue-on-error: false
       
     - name: Generate Test Report
