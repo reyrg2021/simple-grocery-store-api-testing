@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "API Testing automation using Bruno for Simple Grocery Store API",
   "scripts": {
-    "test": "bru run collections --env Testing",
-    "test:happy": "bru run collections/01_Happy_Paths --env Testing",
-    "test:edge": "bru run collections/02_Edge_Cases --env Testing",
-    "test:negative": "bru run collections/03_Negative_Cases --env Testing",
-    "test:flow": "bru run collections/04_Automated_Flow --env Testing",
-    "test:report": "bru run collections --env Testing --output reports/results.json --format json"
+    "test": "bru run . --env Testing",
+    "test:happy": "bru run 01_Happy_Paths --env Testing",
+    "test:edge": "bru run 02_Edge_Cases --env Testing",
+    "test:negative": "bru run 03_Negative_Cases --env Testing",
+    "test:flow": "bru run 04_Automated_Flow --env Testing",
+    "test:report": "bru run . --env Testing --output reports/results.json --format json"
   },
   "keywords": [
     "api-testing",
@@ -17,7 +17,7 @@
     "rest-api",
     "testing"
   ],
-  "author": "Tu Nombre",
+  "author": "Reinier Rodriguez-Guillen",
   "license": "MIT",
   "devDependencies": {
     "@usebruno/cli": "^1.0.0"
