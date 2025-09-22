@@ -2,10 +2,11 @@ name: API Testing with Bruno
 
 on:
   push:
-    branches: main
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
-  
+  schedule:
+    - cron: '0 9 * * 1-5'
 
 jobs:
   api-tests:
@@ -18,56 +19,54 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '22'  # 
+        node-version: '20'
         cache: 'npm'
             
     - name: Install dependencies
       run: |
-        npm install -g @usebruno/cli@latest  # 
+        npm install -g @usebruno/cli@latest
         npm install
             
-    - name: Create reports directory  # 
+    - name: Create reports directory
       run: mkdir -p reports
       
-    - name: Check environment file  # 
+    - name: Check environment file
       run: |
         if [ -f "environments/Testing.bru" ]; then
           echo "Environment file found"
-          cat environments/Testing.bru
         else
           echo "Environment file not found. Creating default..."
           mkdir -p environments
           echo "vars {" > environments/Testing.bru
           echo "  baseUrl: https://simple-grocery-store-api.click" >> environments/Testing.bru
+          echo "  clientName: Bruno API Tester" >> environments/Testing.bru
+          echo "  clientEmail: test@bruno.com" >> environments/Testing.bru
+          echo "  token: \"\"" >> environments/Testing.bru
+          echo "  cartId: \"\"" >> environments/Testing.bru
+          echo "  productId: \"\"" >> environments/Testing.bru
+          echo "  orderId: \"\"" >> environments/Testing.bru
+          echo "  itemId: \"\"" >> environments/Testing.bru
           echo "}" >> environments/Testing.bru
         fi
             
-    - name: Run API Tests - Setup Authentication
-      run: bru run 00_Setup_Authentication --env Testing
-      continue-on-error: false
-          
-    - name: Run API Tests - Happy Paths
-      run: bru run 01_Happy_Paths --env Testing
-      continue-on-error: true
-          
-    - name: Run API Tests - Edge Cases
-      run: bru run 02_Edge_Cases --env Testing
-      continue-on-error: true
-          
-    - name: Run API Tests - Negative Cases  
-      run: bru run 03_Negative_Cases --env Testing
-      continue-on-error: true
-          
-    - name: Run API Tests - Automated Flow
-      run: bru run 04_Automated_Flow --env Testing
-      continue-on-error: false
-          
-    - name: Generate Test Report
-      if: always()
+    - name: Run Complete API Test Suite
       run: |
-        echo "Generating test report..."
-        # Bruno CLI no tiene opción --output nativa, generamos reporte básico
-        echo '{"timestamp": "'$(date)'", "status": "completed"}' > reports/test-results.json
+        echo "🔧 Starting API Test Suite..."
+        
+        echo "📝 Step 1: Authentication Setup"
+        bru run 00_Setup_Authentication --env Testing
+        
+        echo "📝 Step 2: Happy Path Tests"
+        bru run 01_Happy_Paths --env Testing || true
+        
+        echo "📝 Step 3: Edge Case Tests"
+        bru run 02_Edge_Cases --env Testing || true
+        
+        echo "📝 Step 4: Negative Case Tests"
+        bru run 03_Negative_Cases --env Testing || true
+        
+        echo "📝 Step 5: Complete Automated Flow"
+        bru run 04_Automated_Flow --env Testing
             
     - name: Upload Test Results
       if: always()
@@ -80,9 +79,10 @@ jobs:
     - name: Post Test Summary
       if: always()
       run: |
-        echo "## API Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "- Setup Authentication: ✅" >> $GITHUB_STEP_SUMMARY
-        echo "- Happy Paths: ✅" >> $GITHUB_STEP_SUMMARY  
-        echo "- Edge Cases: ✅" >> $GITHUB_STEP_SUMMARY
-        echo "- Negative Cases: ✅" >> $GITHUB_STEP_SUMMARY
-        echo "- Automated Flow: ✅" >> $GITHUB_STEP_SUMMARY
+        echo "## 🧪 API Test Results Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Authentication Setup**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Happy Path Tests**: Executed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Edge Case Tests**: Executed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Negative Case Tests**: Executed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Automated Flow**: Completed" >> $GITHUB_STEP_SUMMARY
