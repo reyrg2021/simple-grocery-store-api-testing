@@ -35,7 +35,7 @@ jobs:
         if [ -f "environments/Testing.bru" ]; then
           echo "Environment file found"
         else
-          echo "Environment file not found. Creating default..."
+          echo "Creating environment file..."
           mkdir -p environments
           echo "vars {" > environments/Testing.bru
           echo "  baseUrl: https://simple-grocery-store-api.click" >> environments/Testing.bru
@@ -49,24 +49,23 @@ jobs:
           echo "}" >> environments/Testing.bru
         fi
             
-    - name: Run Complete API Test Suite
+    - name: Run API Tests in Sequence
       run: |
-        echo "🔧 Starting API Test Suite..."
+        echo "🔧 Running API Tests in correct sequence..."
         
-        echo "📝 Step 1: Authentication Setup"
+        # First run authentication to get token
+        echo "📝 Getting authentication token..."
         bru run 00_Setup_Authentication --env Testing
         
-        echo "📝 Step 2: Happy Path Tests"
-        bru run 01_Happy_Paths --env Testing || true
-        
-        echo "📝 Step 3: Edge Case Tests"
-        bru run 02_Edge_Cases --env Testing || true
-        
-        echo "📝 Step 4: Negative Case Tests"
-        bru run 03_Negative_Cases --env Testing || true
-        
-        echo "📝 Step 5: Complete Automated Flow"
+        # Then run automated flow in same session
+        echo "📝 Running automated flow with token..."
         bru run 04_Automated_Flow --env Testing
+        
+        # Run other test suites
+        echo "📝 Running additional test suites..."
+        bru run 01_Happy_Paths --env Testing || echo "Happy paths completed with some failures"
+        bru run 02_Edge_Cases --env Testing || echo "Edge cases completed with some failures"
+        bru run 03_Negative_Cases --env Testing || echo "Negative cases completed with some failures"
             
     - name: Upload Test Results
       if: always()
@@ -81,8 +80,8 @@ jobs:
       run: |
         echo "## 🧪 API Test Results Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Authentication Setup**: Completed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Happy Path Tests**: Executed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Edge Case Tests**: Executed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Negative Case Tests**: Executed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ **Automated Flow**: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Authentication Setup**: Token generated" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Automated Flow**: Complete E2E test" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Additional Suites**: Happy Paths, Edge Cases, Negative Cases" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "📊 View detailed results in the artifacts section." >> $GITHUB_STEP_SUMMARY
