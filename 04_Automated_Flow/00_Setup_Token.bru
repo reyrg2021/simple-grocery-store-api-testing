@@ -1,0 +1,34 @@
+meta {
+  name: 00_Setup_Token
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api-clients
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "clientName": "{{clientName}}",
+    "clientEmail": "bruno-ci-test@example.com"
+  }
+}
+
+tests {
+  test("Should generate token for automated flow", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('accessToken');
+    
+    // Save token for use in this flow
+    bru.setEnvVar("token", res.getBody().accessToken);
+    
+    console.log("🔑 Token generated for automated flow");
+  });
+}
+
+settings {
+  encodeUrl: true
+}
