@@ -1,0 +1,133 @@
+meta {
+  name: HP2_Cart_Management_Success
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{verifyUrl}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  console.log("Happy Path 2: Testing successful cart management...");
+  
+  // Configuración para el cart management
+  const cartConfig = {
+    productId: 4643, // ID conocido que funciona
+    quantity: 2
+  };
+  
+  // Limpiar variables de cart previas
+  bru.setEnvVar("hp2_cartId", "");
+  bru.setEnvVar("hp2_itemId", "");
+  
+  console.log("Will create cart and add product:", cartConfig.productId);
+  console.log("Quantity to add:", cartConfig.quantity);
+  
+  // Función para crear cart
+  const axios = require('axios');
+  
+  const createCart = async () => {
+    await axios({
+      method: 'post',
+      url: 'https://simple-grocery-store-api.click/carts',
+    })
+    .then(res => {
+      bru.setVar('hp2_cartId', res.data.cartId);
+      console.log("Cart created with ID:", res.data.cartId);
+    })
+    .catch(err => {
+      console.error("Error creating cart:", err);
+    });
+  };
+  
+  const addItemToCart = async () => {
+    const cartId = bru.getVar('hp2_cartId');
+    await axios({
+      method: 'post',
+      url: `https://simple-grocery-store-api.click/carts/${cartId}/items`,
+      data: {
+        productId: cartConfig.productId,
+        quantity: cartConfig.quantity
+      }
+    })
+    .then(res => {
+      bru.setVar('hp2_itemId', res.data.itemId);
+      console.log("Item added with ID:", res.data.itemId);
+    })
+    .catch(err => {
+      console.error("Error adding item:", err);
+    });
+  };
+  
+  // Ejecutar flujo completo
+  await createCart();
+  await addItemToCart();
+  
+  // Configurar URL para verificar el cart final
+  const finalCartId = bru.getVar('hp2_cartId');
+  bru.setVar('verifyUrl', `https://simple-grocery-store-api.click/carts/${finalCartId}`);
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Cart verification status:", status);
+  
+  if (status === 200) {
+    console.log("Cart management successful!");
+    console.log("Items in cart:", body.items ? body.items.length : 0);
+    
+    if (body.items && body.items.length > 0) {
+      console.log("Cart contents:");
+      body.items.forEach((item, index) => {
+        console.log(`  ${index + 1}. Product ID: ${item.productId}, Quantity: ${item.quantity}`);
+      });
+      
+      const expectedItemId = bru.getVar('hp2_itemId');
+      const itemFound = body.items.some(item => item.id == expectedItemId);
+      console.log("Expected item found in cart:", itemFound);
+    }
+    
+    console.log("Happy Path 2 completed successfully!");
+  } else {
+    console.error("Cart verification failed. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should verify cart successfully", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('items');
+  });
+  
+  test("Cart should contain added items", function() {
+    const cart = res.getBody();
+    expect(cart.items).to.be.an('array');
+    expect(cart.items.length).to.be.greaterThan(0);
+  });
+  
+  test("Items should have correct structure", function() {
+    const items = res.getBody().items;
+    items.forEach(item => {
+      expect(item).to.have.property('productId');
+      expect(item).to.have.property('quantity');
+      expect(item).to.have.property('id');
+    });
+  });
+  
+  test("Should find expected item in cart", function() {
+    const expectedItemId = bru.getVar('hp2_itemId');
+    const items = res.getBody().items;
+    const itemFound = items.some(item => item.id == expectedItemId);
+    expect(itemFound).to.be.true;
+  });
+}
+
+settings {
+  encodeUrl: true
+}

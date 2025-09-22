@@ -1,0 +1,104 @@
+meta {
+  name: NC2_Add_Nonexistent_Item
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/carts/{{nc2_cartId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productId": {{nonexistentProductId}},
+    "quantity": {{testQuantity}}
+  }
+}
+
+script:pre-request {
+  console.log("Negative Case 2: Testing add nonexistent item to cart...");
+  
+  const axios = require('axios');
+  
+  // Crear cart para el test negativo
+  const createCart = async () => {
+    await axios({
+      method: 'post',
+      url: 'https://simple-grocery-store-api.click/carts',
+    })
+    .then(res => {
+      bru.setVar('nc2_cartId', res.data.cartId);
+      bru.setEnvVar('nc2_cartId', res.data.cartId);
+      console.log("Cart created for negative test:", res.data.cartId);
+    })
+    .catch(err => {
+      console.error("Error creating cart:", err);
+    });
+  };
+  
+  await createCart();
+  
+  // Configurar producto inexistente
+  const nonexistentConfig = {
+    productId: 999999, // ID que definitivamente no existe
+    quantity: 1
+  };
+  
+  bru.setVar('nonexistentProductId', nonexistentConfig.productId);
+  bru.setVar('testQuantity', nonexistentConfig.quantity);
+  
+  console.log("Attempting to add nonexistent product ID:", nonexistentConfig.productId);
+  console.log("Expected: Should get error for invalid product");
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  const testedProductId = bru.getVar('nonexistentProductId');
+  
+  console.log("Negative Case 2 - Nonexistent item test status:", status);
+  console.log("Attempted product ID:", testedProductId);
+  
+  if (status === 400) {
+    console.log("Expected behavior: Invalid product properly rejected");
+    console.log("Error message:", body.error || body.message);
+  } else if (status === 404) {
+    console.log("Expected behavior: Product not found properly handled");
+    console.log("Error message:", body.error || body.message);
+  } else if (status === 422) {
+    console.log("Expected behavior: Unprocessable entity - invalid product");
+    console.log("Error message:", body.error || body.message);
+  } else {
+    console.log("Unexpected: System should reject nonexistent products");
+    console.log("Status:", status);
+    console.log("Response:", body);
+  }
+}
+
+tests {
+  test("Should reject nonexistent product", function() {
+    expect([400, 404, 422]).to.include(res.getStatus());
+  });
+  
+  test("Should provide error message for invalid product", function() {
+    expect(res.getBody()).to.have.property('error');
+  });
+  
+  test("Should not create item", function() {
+    expect(res.getBody()).to.not.have.property('itemId');
+  });
+  
+  test("Error should mention product validity", function() {
+    const errorMsg = res.getBody().error || res.getBody().message || '';
+    const productRelated = errorMsg.toLowerCase().includes('product') || 
+                          errorMsg.toLowerCase().includes('invalid') ||
+                          errorMsg.toLowerCase().includes('not found');
+    expect(productRelated).to.be.true;
+  });
+}
+
+settings {
+  encodeUrl: true
+}

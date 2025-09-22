@@ -1,0 +1,85 @@
+meta {
+  name: 05_Verify_Order_Association
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/orders/{{orderId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+script:pre-request {
+  console.log("Step 5: Verifying order-cart association...");
+  console.log("OrderId to verify:", bru.getEnvVar("orderId"));
+  console.log("Original cartId was:", bru.getEnvVar("cartId"));
+  
+  // Verificar prerrequisitos
+  if (!bru.getEnvVar("orderId")) {
+    console.error("No orderId available - run Create Order first!");
+  }
+  
+  if (!bru.getEnvVar("token")) {
+    console.error("No token available - run Authentication first!");
+  }
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Verify order status:", status);
+  
+  if (status === 200) {
+    console.log("Order verification successful!");
+    console.log("Order ID:", body.id);
+    console.log("Customer:", body.customerName);
+    console.log("Items in order:", body.items ? body.items.length : 0);
+    
+    if (body.items && body.items.length > 0) {
+      console.log("Cart-Order association verified!");
+      console.log("Order contains the following items:");
+      body.items.forEach((item, index) => {
+        console.log(`  ${index + 1}. Product ID: ${item.productId}, Quantity: ${item.quantity}`);
+      });
+    }
+    
+    console.log("FLOW COMPLETED: Cart created → Items added → Order created → Association verified");
+  } else {
+    console.error("Failed to verify order. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should verify order successfully", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('id');
+    expect(res.getBody().id).to.equal(bru.getEnvVar("orderId"));
+  });
+  
+  test("Order should contain items from cart", function() {
+    expect(res.getBody()).to.have.property('items');
+    expect(res.getBody().items).to.be.an('array');
+    expect(res.getBody().items.length).to.be.greaterThan(0);
+  });
+  
+  test("Order should have customer information", function() {
+    expect(res.getBody()).to.have.property('customerName');
+    expect(res.getBody().customerName).to.equal(bru.getEnvVar("customerName"));
+  });
+  
+  test("Cart-Order association completed", function() {
+    const hasItems = res.getBody().items && res.getBody().items.length > 0;
+    expect(hasItems).to.be.true;
+  });
+}
+
+settings {
+  encodeUrl: true
+}

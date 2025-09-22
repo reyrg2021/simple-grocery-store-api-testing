@@ -1,0 +1,95 @@
+meta {
+  name: 02_Add_Items_To_Cart
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/carts/{{cartId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productId": {{productId1}},
+    "quantity": {{quantity1}}
+  }
+}
+
+script:pre-request {
+  const { v4: uuidv4 } = require('uuid');
+  const axios = require('axios');
+  
+  console.log("Step 2: Adding first item to cart...");
+  console.log("CartId:", bru.getEnvVar("cartId"));
+  
+  // Verificar que tenemos cartId del paso anterior
+  if (!bru.getEnvVar("cartId")) {
+    console.error("No cartId available - run Create Cart first!");
+  }
+  
+  // Función para obtener producto aleatorio
+  const getRandomProduct = async () => {
+    await axios({
+      method: 'get',
+      url: 'https://simple-grocery-store-api.click/products?available=true',
+    })
+    .then(res => {
+      let productos = res.data.length;
+      function getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+      const numeroAleatorio = getRandomInt(0, productos - 1);
+      const selectedProduct = res.data[numeroAleatorio];
+      
+      console.log("Random product selected:", selectedProduct.name);
+      console.log("Product ID:", selectedProduct.id);
+      
+      bru.setVar("productId1", selectedProduct.id);
+    })
+    .catch(err => {
+      console.error("Error getting products:", err);
+    });
+  };
+  
+  // Ejecutar función
+  await getRandomProduct();
+}
+
+script:post-response {
+  let response = res.body;
+  let items = bru.getVar('items') || [];
+  
+  if(res.status === 201){
+    items.push(response.itemId);
+    bru.setVar('items', items);
+    bru.setEnvVar("itemId1", response.itemId);
+    
+    console.log("First item added successfully!");
+    console.log("ItemId:", response.itemId);
+    console.log("Total items in cart:", items.length);
+  } else {
+    console.error("Failed to add item. Status:", res.status);
+    console.error("Response:", response);
+  }
+}
+
+tests {
+  test("Should add first item successfully", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('itemId');
+  });
+  
+  test("Should track items in array", function() {
+    const items = bru.getVar('items');
+    expect(items).to.be.an('array');
+    expect(items.length).to.be.greaterThan(0);
+  });
+}
+
+settings {
+  encodeUrl: true
+}

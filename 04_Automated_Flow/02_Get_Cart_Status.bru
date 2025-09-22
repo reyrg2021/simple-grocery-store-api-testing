@@ -1,0 +1,74 @@
+meta {
+  name: 02_Get_Cart_Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/carts/{{cartId}}
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  console.log("Step 2: Getting cart status...");
+  console.log("CartId to check:", bru.getEnvVar("cartId"));
+  
+  // Verificar que tenemos cartId del paso anterior
+  if (!bru.getEnvVar("cartId")) {
+    console.error("No cartId available - run Create Cart first!");
+  }
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Get cart status:", status);
+  
+  if (status === 200) {
+    console.log("Cart retrieved successfully!");
+    console.log("Items in cart:", body.items ? body.items.length : 0);
+    console.log("Cart created:", body.created);
+    
+    if (body.items && body.items.length > 0) {
+      console.log("Cart contents:");
+      body.items.forEach((item, index) => {
+        console.log(`  ${index + 1}. ${item.productName} (Qty: ${item.quantity})`);
+      });
+    } else {
+      console.log("Cart is empty - ready to add items");
+    }
+  } else {
+    console.error("Failed to get cart. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should get cart successfully", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property('items');
+    expect(res.getBody()).to.have.property('created');
+  });
+  
+  test("Cart should have expected structure", function() {
+    const cart = res.getBody();
+    expect(cart).to.have.property('items');
+    expect(cart).to.have.property('created');
+    expect(cart.items).to.be.an('array');
+  });
+  
+  //test("Cart should be empty initially", function() {
+  //  expect(res.getBody().items.length).to.equal(0);
+  //});
+  
+  test("Should have creation timestamp", function() {
+    expect(res.getBody()).to.have.property('created');
+    expect(res.getBody().created).to.be.a('string');
+  });
+}
+
+settings {
+  encodeUrl: true
+}

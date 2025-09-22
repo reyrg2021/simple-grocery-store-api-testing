@@ -1,0 +1,83 @@
+meta {
+  name: 04_Create_Order
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+body:json {
+  {
+    "cartId": "{{cartId}}",
+    "customerName": "{{customerName}}",
+    "comment": "{{testComment}}"
+  }
+}
+
+script:pre-request {
+  console.log("Step 4: Creating order...");
+  console.log("CartId:", bru.getEnvVar("cartId"));
+  console.log("Token available:", bru.getEnvVar("token") ? "Yes" : "No");
+  
+  // Verificar prerrequisitos
+  if (!bru.getEnvVar("cartId")) {
+    console.error("No cartId available - run Create Cart first!");
+  }
+  
+  if (!bru.getEnvVar("token")) {
+    console.error("No token available - run Authentication first!");
+  }
+  
+  const itemsCount = bru.getVar('items') ? bru.getVar('items').length : 0;
+  console.log("Items in cart before order:", itemsCount);
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Create order status:", status);
+  
+  if (status === 201) {
+    if (body && body.orderId) {
+      bru.setEnvVar("orderId", body.orderId);
+      console.log("Order created successfully!");
+      console.log("Order ID:", body.orderId);
+      console.log("Order created at:", body.created);
+      
+      // El cart se elimina automáticamente después de crear la orden
+      console.log("Cart has been automatically deleted after order creation");
+    }
+  } else {
+    console.error("Failed to create order. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should create order successfully", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('orderId');
+  });
+  
+  test("Should save orderId in environment", function() {
+    expect(bru.getEnvVar("orderId")).to.not.be.empty;
+    expect(bru.getEnvVar("orderId")).to.equal(res.getBody().orderId);
+  });
+  
+  test("Order should have creation timestamp", function() {
+    expect(res.getBody()).to.have.property('created');
+  });
+}
+
+settings {
+  encodeUrl: true
+}

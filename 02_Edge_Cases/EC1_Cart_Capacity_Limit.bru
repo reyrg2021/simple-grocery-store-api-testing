@@ -1,0 +1,93 @@
+meta {
+  name: EC1_Cart_Capacity_Limit
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/carts/{{ec1_cartId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productId": {{edgeProductId}},
+    "quantity": {{edgeQuantity}}
+  }
+}
+
+script:pre-request {
+  console.log("Edge Case 1: Testing cart capacity limits...");
+  
+  const axios = require('axios');
+  
+  // Crear cart para el test
+  const createCart = async () => {
+    await axios({
+      method: 'post',
+      url: 'https://simple-grocery-store-api.click/carts',
+    })
+    .then(res => {
+      bru.setVar('ec1_cartId', res.data.cartId);
+      console.log("Cart created for edge case:", res.data.cartId);
+    })
+    .catch(err => {
+      console.error("Error creating cart:", err);
+    });
+  };
+  
+  await createCart();
+  
+  // Configurar para probar exactamente en el límite
+  const edgeConfig = {
+    productId: 4643,
+    quantity: 15 // Justo por encima del límite para probar manejo de errores
+  };
+  
+  bru.setVar('edgeProductId', edgeConfig.productId);
+  bru.setVar('edgeQuantity', edgeConfig.quantity);
+  
+  console.log("Testing quantity above stock limit:", edgeConfig.quantity);
+  console.log("Expected: Should get stock exceeded error");
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Edge Case 1 - Add excessive quantity status:", status);
+  
+  if (status === 201) {
+    console.log("Edge case: Large quantity accepted!");
+    console.log("Item ID:", body.itemId);
+    console.log("System accepted quantity:", bru.getVar('edgeQuantity'));
+  } else if (status === 400) {
+    console.log("Edge case: System properly rejected excessive quantity");
+    console.log("Error message:", body.error || body.message);
+  } else {
+    console.log("Edge case: Unexpected response:", status);
+    console.log("Response:", body);
+  }
+}
+
+tests {
+  test("Should reject quantity above stock limit", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+  
+  test("Should provide stock exceeded error message", function() {
+    expect(res.getBody()).to.have.property('error');
+    expect(res.getBody().error).to.contain('stock');
+  });
+  
+  test("Error message should be descriptive", function() {
+    const errorMsg = res.getBody().error;
+    expect(errorMsg).to.be.a('string');
+    expect(errorMsg.length).to.be.greaterThan(10);
+  });
+}
+
+settings {
+  encodeUrl: true
+}

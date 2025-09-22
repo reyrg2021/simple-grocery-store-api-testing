@@ -1,0 +1,25 @@
+{
+  "name": "simple-grocery-store-api-testing",
+  "version": "1.0.0",
+  "description": "API Testing automation using Bruno for Simple Grocery Store API",
+  "scripts": {
+    "test": "bru run collections --env Testing",
+    "test:happy": "bru run collections/01_Happy_Paths --env Testing",
+    "test:edge": "bru run collections/02_Edge_Cases --env Testing",
+    "test:negative": "bru run collections/03_Negative_Cases --env Testing",
+    "test:flow": "bru run collections/04_Automated_Flow --env Testing",
+    "test:report": "bru run collections --env Testing --output reports/results.json --format json"
+  },
+  "keywords": [
+    "api-testing",
+    "bruno",
+    "automation",
+    "rest-api",
+    "testing"
+  ],
+  "author": "Tu Nombre",
+  "license": "MIT",
+  "devDependencies": {
+    "@usebruno/cli": "^1.0.0"
+  }
+}

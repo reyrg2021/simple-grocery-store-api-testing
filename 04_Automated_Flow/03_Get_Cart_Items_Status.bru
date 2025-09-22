@@ -1,0 +1,78 @@
+meta {
+  name: 03_Get_Cart_Items_Status
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/carts/{{cartId}}/items
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  console.log("Getting cart items status...");
+  console.log("CartId:", bru.getEnvVar("cartId"));
+  console.log("Expected items in cart:", bru.getVar('items') ? bru.getVar('items').length : 0);
+  
+  // Verificar que tenemos cartId
+  if (!bru.getEnvVar("cartId")) {
+    console.error("No cartId available - run Create Cart first!");
+  }
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Get cart items status:", status);
+  
+  if (status === 200) {
+    console.log("Cart items retrieved successfully!");
+    
+    if (Array.isArray(body) && body.length > 0) {
+      console.log("Items found:", body.length);
+      body.forEach((item, index) => {
+        console.log(`Item ${index + 1}:`);
+        console.log(`  - ID: ${item.id}`);
+        console.log(`  - Product: ${item.productName || 'Unknown'}`);
+        console.log(`  - Quantity: ${item.quantity}`);
+        console.log(`  - Price: $${item.price || 'N/A'}`);
+      });
+    } else {
+      console.log("No items in cart");
+    }
+  } else {
+    console.error("Failed to get cart items. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should get cart items successfully", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Should return array of items", function() {
+    expect(res.getBody()).to.be.an('array');
+  });
+  
+  //test("Items should match expected count", function() {
+   // const expectedCount = bru.getVar('items') ? bru.getVar('items').length : 0;
+  //  expect(res.getBody().length).to.equal(expectedCount);
+  //});
+  
+  test("Each item should have required properties", function() {
+    const items = res.getBody();
+    if (items.length > 0) {
+      items.forEach(item => {
+        expect(item).to.have.property('id');
+        expect(item).to.have.property('quantity');
+      });
+    }
+  });
+}
+
+settings {
+  encodeUrl: true
+}

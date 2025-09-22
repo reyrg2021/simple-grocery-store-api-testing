@@ -1,0 +1,115 @@
+meta {
+  name: HP1_Product_Search_Success
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/products?category={{searchCategory}}&available={{availableOnly}}&results={{maxResults}}
+  body: none
+  auth: inherit
+}
+
+params:query {
+  category: {{searchCategory}}
+  available: {{availableOnly}}
+  results: {{maxResults}}
+}
+
+script:pre-request {
+  console.log("Happy Path 1: Testing successful product search...");
+  console.log("Search category:", bru.getEnvVar("searchCategory"));
+  console.log("Available only:", bru.getEnvVar("availableOnly"));
+  console.log("Max results:", bru.getEnvVar("maxResults"));
+  
+  // Validar que las variables están configuradas
+  if (!bru.getEnvVar("searchCategory")) {
+    console.error("searchCategory not configured in environment");
+  }
+  
+  const searchParams = {
+    category: bru.getEnvVar("searchCategory"),
+    available: bru.getEnvVar("availableOnly"),
+    results: bru.getEnvVar("maxResults")
+  };
+  console.log("Using search parameters:", searchParams);
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  const expectedCategory = bru.getEnvVar("searchCategory");
+  const maxResults = parseInt(bru.getEnvVar("maxResults"));
+  
+  console.log("Product search status:", status);
+  
+  if (status === 200) {
+    console.log("Product search successful!");
+    console.log("Products found:", body.length);
+    console.log("Expected category:", expectedCategory);
+    console.log("Max results limit:", maxResults);
+    
+    if (body.length > 0) {
+      console.log("Sample products:");
+      body.slice(0, 3).forEach((product, index) => {
+        console.log(`  ${index + 1}. ${product.name} - ID: ${product.id} - Category: ${product.category}`);
+      });
+      
+      // Validaciones dinámicas
+      const correctCategory = body.every(p => p.category === expectedCategory);
+      const allAvailable = body.every(p => p.inStock === true);
+      const withinLimit = body.length <= maxResults;
+      
+      console.log("All products match expected category:", correctCategory);
+      console.log("All products are available:", allAvailable);
+      console.log("Results within limit:", withinLimit);
+    }
+  } else {
+    console.error("Product search failed. Status:", status);
+    console.error("Response:", body);
+  }
+}
+
+tests {
+  test("Should return successful response", function() {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.be.an('array');
+  });
+  
+  test("Should return correct category products", function() {
+    const expectedCategory = bru.getEnvVar("searchCategory");
+    const products = res.getBody();
+    
+    products.forEach(product => {
+      expect(product.category).to.equal(expectedCategory);
+    });
+  });
+  
+  test("Should return only available products", function() {
+    const products = res.getBody();
+    products.forEach(product => {
+      expect(product.inStock).to.be.true;
+    });
+  });
+  
+  test("Should respect results limit", function() {
+    const maxResults = parseInt(bru.getEnvVar("maxResults"));
+    expect(res.getBody().length).to.be.at.most(maxResults);
+  });
+  
+  test("Should return products with required properties", function() {
+    const products = res.getBody();
+    expect(products.length).to.be.greaterThan(0);
+    
+    products.forEach(product => {
+      expect(product).to.have.property('id');
+      expect(product).to.have.property('name');
+      expect(product).to.have.property('category');
+      expect(product).to.have.property('inStock');
+    });
+  });
+}
+
+settings {
+  encodeUrl: true
+}

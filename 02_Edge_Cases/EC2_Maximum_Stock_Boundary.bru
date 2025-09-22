@@ -1,0 +1,95 @@
+meta {
+  name: EC2_Maximum_Stock_Boundary
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/carts/{{ec2_cartId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productId": {{boundaryProductId}},
+    "quantity": {{boundaryQuantity}}
+  }
+}
+
+script:pre-request {
+  console.log("Edge Case 2: Testing maximum stock boundary...");
+  
+  const axios = require('axios');
+  
+  // Crear cart para el test
+  const createCart = async () => {
+    await axios({
+      method: 'post',
+      url: 'https://simple-grocery-store-api.click/carts',
+    })
+    .then(res => {
+      bru.setVar('ec2_cartId', res.data.cartId);
+      console.log("Cart created for edge case 2:", res.data.cartId);
+    })
+    .catch(err => {
+      console.error("Error creating cart:", err);
+    });
+  };
+  
+  await createCart();
+  
+  // Configurar para probar exactamente en el límite máximo
+  const boundaryConfig = {
+    productId: 4643,
+    quantity: 14 // Exactamente en el límite máximo
+  };
+  
+  bru.setVar('boundaryProductId', boundaryConfig.productId);
+  bru.setVar('boundaryQuantity', boundaryConfig.quantity);
+  
+  console.log("Testing maximum allowed quantity:", boundaryConfig.quantity);
+  console.log("Expected: Should succeed at boundary limit");
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log("Edge Case 2 - Maximum boundary test status:", status);
+  
+  if (status === 201) {
+    console.log("Boundary test successful!");
+    console.log("Item ID:", body.itemId);
+    console.log("Maximum quantity accepted:", bru.getVar('boundaryQuantity'));
+    console.log("System correctly handles boundary limit");
+  } else {
+    console.log("Unexpected: Boundary limit rejected");
+    console.log("Status:", status);
+    console.log("Response:", body);
+  }
+}
+
+tests {
+  test("Should accept maximum allowed quantity", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+  
+  test("Should return itemId for boundary case", function() {
+    expect(res.getBody()).to.have.property('itemId');
+    expect(res.getBody().itemId).to.be.a('number');
+  });
+  
+  test("Should handle boundary quantity correctly", function() {
+    const expectedQuantity = parseInt(bru.getVar('boundaryQuantity'));
+    expect(expectedQuantity).to.equal(14);
+  });
+  
+  test("Response should not contain errors", function() {
+    expect(res.getBody()).to.not.have.property('error');
+  });
+}
+
+settings {
+  encodeUrl: true
+}

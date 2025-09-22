@@ -1,0 +1,75 @@
+meta {
+  name: 01_Create_Cart
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/carts
+  body: none
+  auth: inherit
+}
+
+script:pre-request {
+  console.log(" Creating new cart...");
+  console.log(" Token available:", bru.getEnvVar("token") ? "Yes" : "No");
+  
+  // Limpiar cartId previo para empezar fresco
+  bru.setEnvVar("cartId", "");
+  
+  // Log del inicio del flujo automatizado
+  console.log(" Starting Automated Flow - Step 1: Create Cart");
+  const timestamp = new Date().toISOString();
+  console.log(" Flow started at:", timestamp);
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  
+  console.log(`📈 Cart creation status: ${status}`);
+  console.log(`📦 Response body:`, body);
+  
+  if (status === 201) {
+    if (body && body.cartId) {
+      bru.setEnvVar("cartId", body.cartId);
+      console.log("✅ Cart created successfully!");
+      console.log("🆔 Cart ID saved:", body.cartId);
+      console.log("🎯 Ready for Step 2: Get Products");
+    } else {
+      console.error("❌ Response missing cartId property");
+      console.error("Full response:", body);
+    }
+  } else {
+    console.error("❌ Failed to create cart");
+    console.error(`Expected status 201, got ${status}`);
+    console.error("Error response:", body);
+  }
+}
+
+tests {
+  test("Should create cart with 201 status", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+  
+  test("Should return cartId in response", function() {
+    expect(res.getBody()).to.have.property('cartId');
+    expect(res.getBody().cartId).to.be.a('string');
+    expect(res.getBody().cartId.length).to.be.greaterThan(0);
+  });
+  
+  test("CartId should be saved in environment", function() {
+    const savedCartId = bru.getEnvVar("cartId");
+    expect(savedCartId).to.equal(res.getBody().cartId);
+    expect(savedCartId).to.not.be.empty;
+  });
+  
+  test("Response should not contain errors", function() {
+    expect(res.getBody()).to.not.have.property('error');
+    expect(res.getBody()).to.not.have.property('message');
+  });
+}
+
+settings {
+  encodeUrl: true
+}

@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "Simple_Grocery_Store_API_Testing",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

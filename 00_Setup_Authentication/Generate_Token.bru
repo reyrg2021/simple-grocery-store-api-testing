@@ -1,0 +1,72 @@
+meta {
+  name: Generate_Token
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api-clients
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "clientName": "{{clientName}}",
+    "clientEmail": "{{uniqueEmail}}"
+  }
+}
+
+script:pre-request {
+  // Limpiar variables previas para empezar
+  bru.setEnvVar("token", "");
+  bru.setEnvVar("cartId", "");
+  bru.setEnvVar("orderId", "");
+  bru.setEnvVar("productId", "");
+  
+  // Generar email único para evitar conflictos
+  const timestamp = Date.now();
+  const uniqueEmail = `bruno-test-${timestamp}@example.com`;
+  bru.setVar("uniqueEmail", uniqueEmail);
+  
+  console.log("Starting API testing session...");
+  console.log("Generated unique email:", uniqueEmail);
+}
+
+script:post-response {
+  // Verificar si la respuesta fue exitosa
+  if (res.getStatus() === 201) {
+    const responseBody = res.getBody();
+    
+    if (responseBody && responseBody.accessToken) {
+      // Guardar token en environment
+      bru.setEnvVar("token", responseBody.accessToken);
+      
+      console.log(" Authentication successful!");
+      console.log(" Token generated and saved");
+      console.log(" Ready to proceed with API testing");
+    } else {
+      console.error(" No access token in response");
+    }
+  } else {
+    console.error(" Authentication failed with status:", res.getStatus());
+    console.error("Response:", res.getBody());
+  }
+}
+
+tests {
+  test("Should create API client successfully", function() {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property('accessToken');
+    expect(res.getBody().accessToken).to.be.a('string');
+    expect(res.getBody().accessToken.length).to.be.greaterThan(10);
+  });
+  
+  test("Token should be saved in environment", function() {
+    expect(bru.getEnvVar("token")).to.equal(res.getBody().accessToken);
+  });
+}
+
+settings {
+  encodeUrl: true
+}

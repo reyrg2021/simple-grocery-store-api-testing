@@ -1,0 +1,129 @@
+meta {
+  name: EC3_Different_Product_Stock_Limit
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/carts/{{ec3_cartId}}/items
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "productId": {{testProductId}},
+    "quantity": {{testQuantity}}
+  }
+}
+
+script:pre-request {
+  console.log("Edge Case 3: Testing stock limits with different product...");
+  
+  const axios = require('axios');
+  
+  // Crear cart para el test
+  const createCart = async () => {
+    await axios({
+      method: 'post',
+      url: 'https://simple-grocery-store-api.click/carts',
+    })
+    .then(res => {
+      bru.setVar('ec3_cartId', res.data.cartId);
+      console.log("Cart created for edge case 3:", res.data.cartId);
+    })
+    .catch(err => {
+      console.error("Error creating cart:", err);
+    });
+  };
+  
+  // Obtener un producto diferente y guardar toda su información
+  const getRandomProductAndTestLimit = async () => {
+    await axios({
+      method: 'get',
+      url: 'https://simple-grocery-store-api.click/products?available=true',
+    })
+    .then(res => {
+      // Filtrar para obtener un producto diferente al 4643
+      const differentProducts = res.data.filter(p => p.id !== 4643);
+      const randomProduct = differentProducts[Math.floor(Math.random() * differentProducts.length)];
+      
+      bru.setVar('testProductId', randomProduct.id);
+      bru.setVar('testProductName', randomProduct.name);
+      bru.setVar('testProductCategory', randomProduct.category);
+      bru.setVar('testQuantity', 20);
+      
+      console.log("=== SELECTED PRODUCT ===");
+      console.log("ID:", randomProduct.id);
+      console.log("Name:", randomProduct.name);
+      console.log("Category:", randomProduct.category);
+      console.log("In Stock:", randomProduct.inStock);
+      console.log("Testing with quantity:", 20);
+    })
+    .catch(err => {
+      console.error("Error getting products:", err);
+    });
+  };
+  
+  await createCart();
+  await getRandomProductAndTestLimit();
+}
+
+script:post-response {
+  const status = res.getStatus();
+  const body = res.getBody();
+  const productId = bru.getVar('testProductId');
+  const productName = bru.getVar('testProductName');
+  const productCategory = bru.getVar('testProductCategory');
+  const testedQuantity = bru.getVar('testQuantity');
+  
+  console.log("=== EDGE CASE 3 - PRODUCT ANALYSIS ===");
+  console.log("Product ID:", productId);
+  console.log("Product Name:", productName);
+  console.log("Product Category:", productCategory);
+  console.log("Quantity Tested:", testedQuantity);
+  console.log("Response Status:", status);
+  
+  if (status === 201) {
+    console.log("✅ SUCCESS: Product accepted quantity", testedQuantity);
+    console.log("This", productCategory, "product has stock >=", testedQuantity);
+  } else if (status === 400) {
+    console.log("❌ STOCK LIMIT: Product rejected quantity", testedQuantity);
+    console.log("Error:", body.error);
+    console.log("This", productCategory, "product has stock <", testedQuantity);
+  } else {
+    console.log("⚠️ UNEXPECTED:", status);
+  }
+  
+  console.log("=== COMPARISON ===");
+  console.log("Product 4643 (previous): limit = 14");
+  console.log("Product", productId, "(" + productCategory + "): limit being tested");
+}
+
+tests {
+  test("Should get a definitive response", function() {
+    expect([201, 400]).to.include(res.getStatus());
+  });
+  
+  test("Different product should be tested", function() {
+    const productId = parseInt(bru.getVar('testProductId'));
+    expect(productId).to.not.equal(4643);
+    
+  });
+  
+  test("If stock exceeded, should have error message", function() {
+    if (res.getStatus() === 400) {
+      expect(res.getBody()).to.have.property('error');
+    }
+  });
+  
+  test("If successful, should return itemId", function() {
+    if (res.getStatus() === 201) {
+      expect(res.getBody()).to.have.property('itemId');
+    }
+  });
+}
+
+settings {
+  encodeUrl: true
+}
